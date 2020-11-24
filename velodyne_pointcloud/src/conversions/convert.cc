@@ -29,6 +29,8 @@ namespace velodyne_pointcloud {
 
     // advertise output point cloud (before subscribing to input data)
     output_ =
+      node.advertise<sensor_msgs::PointCloud2>("velodyne_points_raw", 10);
+    output_filtered_ =
       node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
 
     srv_ = boost::make_shared<dynamic_reconfigure::Server<velodyne_pointcloud::
@@ -54,7 +56,8 @@ namespace velodyne_pointcloud {
 
   /** @brief Callback for raw scan messages. */
   void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg) {
-    if (output_.getNumSubscribers() == 0)         // no one listening?
+    if (output_filtered_.getNumSubscribers() == 0
+        && output_.getNumSubscribers() == 0)         // no one listening?
       return;                                     // avoid much work
 
     // allocate a point cloud with same time and frame ID as raw data
@@ -101,7 +104,8 @@ namespace velodyne_pointcloud {
     // publish the accumulated cloud message
     ROS_DEBUG_STREAM("Publishing " << cloud_filtered->height * cloud_filtered->width
                                    << " Velodyne points, time: " << cloud_filtered->header.stamp);
-    output_.publish(cloud_filtered);
+    output_filtered_.publish(cloud_filtered);
+    output_.publish(outMsg);
   }
 
 } // namespace velodyne_pointcloud

@@ -20,6 +20,8 @@
   <arg name="repeat_delay" default="0.0" />
   <arg name="rpm" default="600.0" />
 
+  <remap from="/velodyne_points" to="/points_raw" />
+
   <!-- start nodelet manager and driver nodelets -->
   <include file="$(find velodyne_driver)/launch/nodelet_manager.launch">
     <arg name="device_ip" value="$(arg device_ip)"/>
