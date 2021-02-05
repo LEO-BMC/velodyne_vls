@@ -323,67 +323,50 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
 bool VelodyneDriver::poll(void) {
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
   velodyne_msgs::VelodyneScanPtr scan(new velodyne_msgs::VelodyneScan);
-  scan->packets.resize(config_.npackets);
 
-  // Since the velodyne delivers data at a very high rate, keep
-  // reading and publishing scans as fast as possible.
-  for (int i = 0; i < config_.npackets; ++i) {
+
+  auto get_time_millis = []() {
+    return static_cast<uint64_t>(std::floor(ros::Time::now().toSec() * 1000));
+  };
+
+  if (!millis_initialized_) {
+    uint64_t time_since_beginning = get_time_millis() / millis_revolution_ - 1;
+    millis_target_next_ = time_since_beginning * millis_revolution_;
+    millis_initialized_ = true;
+  }
+
+  while (millis_target_next_ < get_time_millis()) {
+    millis_target_next_ += millis_revolution_;
+    ROS_INFO_STREAM("hmm");
+  }
+
+  scan->packets.resize(config_.npackets * 1.2);
+
+  int index_packet = 0;
+  bool millis_switch_ = false;
+  while (!millis_switch_) {
+    if (get_time_millis() > millis_target_next_) {
+      millis_target_next_ += millis_revolution_;
+      millis_switch_ = true;
+    }
     while (true) {
       // keep reading until full packet received
-      int rc = input_->getPacket(&scan->packets[i], config_.time_offset);
+      int rc = input_->getPacket(&scan->packets[index_packet], config_.time_offset);
       if (rc == 0) break;       // got a full packet?
       if (rc < 0) return false; // end of file reached?
     }
-    // Automatic RPM detection logic pushed here.
-    // got a packet here
-    // Build the detection state machine to update config_.npackets automatically
-    // after observing the first few hundred  packets
-    curr_packet_toh = scan->packets[i].data[1200];
-    curr_packet_toh |= scan->packets[i].data[1201] << 8;
-    curr_packet_toh |= scan->packets[i].data[1202] << 16;
-    curr_packet_toh |= scan->packets[i].data[1203] << 24;
-    curr_packet_azm = scan->packets[i].data[2]; // lower word of azimuth block 0
-    curr_packet_azm |= scan->packets[i].data[3] << 8; // higher word of azimuth block 0
-    curr_packet_rmode = scan->packets[i].data[1204];
-    curr_packet_sensor_model = scan->packets[i].data[1205];
-    if (i > 0) {
-      int delta_azm = ((curr_packet_azm + 36000) - prev_packet_azm) % 36000;
-      long delta_toh = ((curr_packet_toh + 3600000000) - prev_packet_toh) % 3600000000;
-      double inst_azm_rate = double(delta_azm) * 1e4 / double(delta_toh); // 1 step diff
-      auto_rpm = auto_alpha * auto_rpm
-          + (1.0 - auto_alpha) * (inst_azm_rate / 6); // 6 is basically ratio of 360 deg for 1 revolution
-      //  and 60 seconds in minute
-      // auto_rpm works as a 1 tap IIR with auto_alpha as
-      // a coeff of memory.
-      // we can trade tracking bandwidth with variance of
-      // auto_rpm by auto_alpha.. value of 0 will kill tracking
-      // and have zero variance in auto_rpm
 
-      // std::cerr << "delta_azm = " << delta_azm ;
-      // std::cerr << ", delta_toh = " << delta_toh ;
-      // std::cerr << ", rate = " << inst_azm_rate ;
-      // std::cerr << ", auto_rpm = " << auto_rpm ;
-      // std::cerr <<  std::endl;
-
+    index_packet++;
+    if (index_packet > scan->packets.size() - 1) {
+      ROS_WARN_STREAM("index_packet is too big");
+      break;
     }
-    prev_packet_toh = curr_packet_toh;
-    prev_packet_azm = curr_packet_azm;
   }
-  // calculate npackets for next scan
-  auto_npackets = get_auto_npackets(curr_packet_sensor_model, curr_packet_rmode, auto_rpm, firing_cycle, active_slots);
+  scan->packets.resize(index_packet);
 
-  // average the time stamp from first package and last package
-  double firstTimeStamp = computeTimeStamp(scan, 0);
-  double lastTimeStamp = computeTimeStamp(scan, config_.npackets - 1);
-  double meanTimeStamp = (firstTimeStamp + lastTimeStamp) / 2;
-  // std::cerr << " Velodyne Driver Timestamp first packet= " << firstTimeStamp << std::endl;
-  // std::cerr << " Velodyne Driver Timestamp last packet= " << lastTimeStamp << std::endl;
-  time_t seconds;
-  seconds = time(NULL);
-  int gpsSeconds = ((int) (seconds / 3600)) * 3600 + floor(meanTimeStamp);
-  int nanSecs = (meanTimeStamp - floor(meanTimeStamp)) * pow(10, 9);
-  scan->header.stamp = ros::Time(gpsSeconds, nanSecs);
-  // std::cerr<< scan->header.stamp << std::endl;
+
+
+
   // publish message using time of last packet read
   ROS_DEBUG("Publishing a full Velodyne scan.");
   scan->header.frame_id = config_.frame_id;
