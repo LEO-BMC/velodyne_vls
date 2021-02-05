@@ -45,6 +45,10 @@ class VelodyneDriver {
   boost::shared_ptr<dynamic_reconfigure::Server<velodyne_driver::
                                                 VelodyneNodeConfig> > srv_;
 
+  uint64_t millis_target_next_;
+  bool millis_initialized_;
+  int millis_revolution_;
+
   // configuration parameters
   struct {
     std::string frame_id;            ///< tf frame ID

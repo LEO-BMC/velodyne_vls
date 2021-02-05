@@ -306,6 +306,13 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
   output_ =
       node.advertise<velodyne_msgs::VelodyneScan>("velodyne_packets", 10);
   firing_cycle = slot_time * num_slots; // firing cycle time
+
+
+  double revs_per_sec = config_.rpm / 60.0f;
+  millis_revolution_ = static_cast<int>(std::round(1000.0 / revs_per_sec));
+  ROS_INFO_STREAM("millis_revolution = " << millis_revolution_);
+  millis_target_next_ = 0;
+  millis_initialized_ = false;
 }
 
 /** poll the device
