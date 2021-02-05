@@ -24,12 +24,10 @@
 #include <velodyne_driver/input.h>
 #include <velodyne_driver/VelodyneNodeConfig.h>
 
-namespace velodyne_driver
-{
+namespace velodyne_driver {
 
-class VelodyneDriver
-{
-public:
+class VelodyneDriver {
+ public:
 
   VelodyneDriver(ros::NodeHandle node,
                  ros::NodeHandle private_nh);
@@ -37,22 +35,21 @@ public:
 
   bool poll(void);
 
-private:
+ private:
 
   ///Callback for dynamic reconfigure
   void callback(velodyne_driver::VelodyneNodeConfig &config,
-              uint32_t level);
+                uint32_t level);
 
   ///Pointer to dynamic reconfigure service srv_
   boost::shared_ptr<dynamic_reconfigure::Server<velodyne_driver::
-              VelodyneNodeConfig> > srv_;
+                                                VelodyneNodeConfig> > srv_;
 
   // configuration parameters
-  struct
-  {
+  struct {
     std::string frame_id;            ///< tf frame ID
     std::string model;               ///< device model name
-    int    npackets;                 ///< number of packets to collect
+    int npackets;                 ///< number of packets to collect
     double rpm;                      ///< device rotation rate (RPMs)
     double alpha;
     double time_offset;              ///< time in seconds added to each velodyne time stamp
@@ -71,17 +68,17 @@ private:
   uint16_t prev_packet_azm;
   uint32_t curr_packet_toh;
   uint16_t curr_packet_azm;
-  double   auto_rpm;
-  double   auto_alpha;
+  double auto_rpm;
+  double auto_alpha;
   uint32_t auto_npackets;
-  double   auto_packet_rate;
-  uint8_t  curr_packet_rmode; //    [strongest return or farthest mode => Singular Retruns per firing]  
-                              // or [Both  => Dual Retruns per fire]
-  uint8_t  curr_packet_sensor_model; // extract the sensor id from packet
-  double   slot_time ;
-  uint8_t  num_slots; 
-  uint8_t  active_slots;
-  double   firing_cycle; 
+  double auto_packet_rate;
+  uint8_t curr_packet_rmode; //    [strongest return or farthest mode => Singular Retruns per firing]
+  // or [Both  => Dual Retruns per fire]
+  uint8_t curr_packet_sensor_model; // extract the sensor id from packet
+  double slot_time;
+  uint8_t num_slots;
+  uint8_t active_slots;
+  double firing_cycle;
   std::string dump_file; // string to hold pcap file name
 };
 
