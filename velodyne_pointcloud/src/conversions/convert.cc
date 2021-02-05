@@ -16,7 +16,7 @@
 #include "convert.h"
 
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/approximate_voxel_grid.h>
 #include <chrono>
 #include <thread>
 
@@ -84,15 +84,19 @@ namespace velodyne_pointcloud {
     //Downsample
     velodyne_rawdata::CloudSimple::Ptr cloud_filtered(new velodyne_rawdata::CloudSimple());
     cloud_filtered->header = outMsg->header;
-    pcl::VoxelGrid<velodyne_rawdata::PointSimple> grid;
-    grid.setLeafSize(0.200f, 0.200f, 0.200f);
+    pcl::ApproximateVoxelGrid<velodyne_rawdata::PointSimple> grid;
+    float leaf_size = 0.2f;
+    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(outMsg);
     grid.filter(*cloud_filtered);
 
     TimePoint time_point_end = Clock::now();
 
     int milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(time_point_end - time_point_start).count();
-    std::cout << "downsampling milliseconds passed : " << milliseconds << ", before: " << outMsg->points.size() << ", after: " << cloud_filtered->points.size() << std::endl;
+    std::cout << "downsampling milliseconds passed : " << milliseconds
+              << ", before: " << outMsg->points.size()
+              << ", after: " << cloud_filtered->points.size()
+              << std::endl;
 
     //Re convert pointcloud msg
 //    sensor_msgs::PointCloud2 msg_cloud_filtered_ros;
