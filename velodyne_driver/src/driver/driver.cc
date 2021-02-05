@@ -323,6 +323,8 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
 bool VelodyneDriver::poll(void) {
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
   velodyne_msgs::VelodyneScanPtr scan(new velodyne_msgs::VelodyneScan);
+  // Since the velodyne delivers data at a very high rate, keep
+  // reading and publishing scans as fast as possible.
 
 
   auto get_time_millis = []() {
@@ -369,24 +371,19 @@ bool VelodyneDriver::poll(void) {
 
   // publish message using time of last packet read
   ROS_DEBUG("Publishing a full Velodyne scan.");
+
+  uint64_t millis_target_start = millis_target_next_ - millis_revolution_;
+
+  scan->header.stamp.fromNSec(millis_target_start * 1000000);
+
   scan->header.frame_id = config_.frame_id;
   output_.publish(scan);
+
   // notify diagnostics that a message has been published, updating
   // its status
   diag_topic_->tick(scan->header.stamp);
   diagnostics_.update();
-  // update npackets for next run
-  // std::cerr << ", auto_rpm = " << auto_rpm ;
-  // std::cerr << ", auto_npackets = " << auto_npackets;
-  // std::cerr << ", prev_frac_packet = " << prev_frac_packet << std::endl ;
 
-  config_.npackets = auto_npackets;
-  if (dump_file != "")                  // have PCAP file?
-  {
-    auto_packet_rate =
-        get_auto_packetrate(curr_packet_sensor_model, curr_packet_rmode, auto_rpm, firing_cycle, active_slots);
-    input_->setPacketRate(auto_packet_rate);
-  }
   return true;
 }
 
